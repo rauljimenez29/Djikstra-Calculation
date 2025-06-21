@@ -58,18 +58,33 @@ function findNearestNode(lat, lng, nodes) {
 
 // --- CORRECTED DIJKSTRA FUNCTION ---
 function dijkstra(graph, start, end) {
+  // This logic is adapted from the working client-side fallback.
+  if (start === end) {
+    return { path: [start], distance: 0 };
+  }
+
   const distances = {}, prev = {}, visited = new Set(), queue = [];
 
-  // FIX: Initialize distances for ALL nodes from the global graphNodes array.
-  // This ensures that all nodes, including destination-only ones, are considered.
-  for (const node of graphNodes) {
-    distances[node.id] = Infinity;
-    prev[node.id] = null;
+  // CORRECT INITIALIZATION: Loop over the graph keys, just like the client.
+  // This ensures all nodes that are part of any edge are included.
+  for (const node in graph) {
+    distances[node] = Infinity;
+    prev[node] = null;
+  }
+  
+  // Also add nodes that might be destinations but not origins
+  for (const node in graph) {
+    for (const edge of graph[node]) {
+      if (distances[edge.node] === undefined) {
+        distances[edge.node] = Infinity;
+        prev[edge.node] = null;
+      }
+    }
   }
 
   // Check if start node is valid before proceeding
   if (distances[start] === undefined) {
-    console.error("Start node not found in graphNodes list.");
+    console.error("Start node not found in graph.");
     return { path: [], distance: Infinity };
   }
   
@@ -87,7 +102,10 @@ function dijkstra(graph, start, end) {
     const neighbors = graph[current] || [];
     for (const { node: neighbor, weight } of neighbors) {
       const alt = distances[current] + weight;
-      // The initialization fix above ensures distances[neighbor] is always a number.
+      if (distances[neighbor] === undefined) { 
+        // This handles destination-only nodes that weren't in the initial keys
+        distances[neighbor] = Infinity;
+      }
       if (alt < distances[neighbor]) {
         distances[neighbor] = alt;
         prev[neighbor] = current;
@@ -100,7 +118,6 @@ function dijkstra(graph, start, end) {
   const path = [];
   let u = end;
   
-  // This condition correctly handles cases where no path is found (prev[end] will be null)
   if (prev[u] !== null || u === start) {
     while (u) {
       path.unshift(u);
@@ -108,7 +125,6 @@ function dijkstra(graph, start, end) {
     }
   }
 
-  // If the path doesn't start with the start node, it's invalid.
   if (path[0] !== start) {
     return { path: [], distance: Infinity };
   }
