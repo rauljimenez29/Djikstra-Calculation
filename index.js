@@ -19,11 +19,17 @@ async function loadGraphData() {
     graphNodes = await nodesRes.json();
     graphEdges = await edgesRes.json();
     console.log('Graph data loaded from Google Drive!');
+
+    // Add these logs:
+    console.log('graphNodes type:', typeof graphNodes, Array.isArray(graphNodes));
+    console.log('graphNodes sample:', graphNodes && graphNodes.slice ? graphNodes.slice(0, 2) : graphNodes);
+    console.log('graphEdges type:', typeof graphEdges, Array.isArray(graphEdges));
+    console.log('graphEdges sample:', graphEdges && Object.keys(graphEdges).length ? Object.keys(graphEdges).slice(0, 2) : graphEdges);
+
   } catch (err) {
     console.error('Failed to load graph data:', err);
   }
 }
-
 // Load data at startup
 loadGraphData();
 
