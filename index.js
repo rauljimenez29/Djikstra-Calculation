@@ -56,24 +56,38 @@ function findNearestNode(lat, lng, nodes) {
   return nearest;
 }
 
+// --- CORRECTED DIJKSTRA FUNCTION ---
 function dijkstra(graph, start, end) {
   const distances = {}, prev = {}, visited = new Set(), queue = [];
-  for (const node in graph) {
-    distances[node] = Infinity;
-    prev[node] = null;
+
+  // FIX: Initialize distances for ALL nodes from the global graphNodes array.
+  // This ensures that all nodes, including destination-only ones, are considered.
+  for (const node of graphNodes) {
+    distances[node.id] = Infinity;
+    prev[node.id] = null;
   }
+
+  // Check if start node is valid before proceeding
+  if (distances[start] === undefined) {
+    console.error("Start node not found in graphNodes list.");
+    return { path: [], distance: Infinity };
+  }
+  
   distances[start] = 0;
   queue.push({ node: start, dist: 0 });
 
   while (queue.length > 0) {
     queue.sort((a, b) => a.dist - b.dist);
     const { node: current } = queue.shift();
-    if (visited.has(current)) continue;
+    if (!current || visited.has(current)) continue;
+
     visited.add(current);
     if (current === end) break;
+    
     const neighbors = graph[current] || [];
     for (const { node: neighbor, weight } of neighbors) {
       const alt = distances[current] + weight;
+      // The initialization fix above ensures distances[neighbor] is always a number.
       if (alt < distances[neighbor]) {
         distances[neighbor] = alt;
         prev[neighbor] = current;
@@ -81,15 +95,24 @@ function dijkstra(graph, start, end) {
       }
     }
   }
+  
   // Reconstruct path
   const path = [];
   let u = end;
+  
+  // This condition correctly handles cases where no path is found (prev[end] will be null)
   if (prev[u] !== null || u === start) {
     while (u) {
       path.unshift(u);
       u = prev[u];
     }
   }
+
+  // If the path doesn't start with the start node, it's invalid.
+  if (path[0] !== start) {
+    return { path: [], distance: Infinity };
+  }
+
   return { path, distance: distances[end] };
 }
 
@@ -117,8 +140,8 @@ app.post('/calculate_route', async (req, res) => {
   // Log the Dijkstra result
   console.log('Dijkstra result:', result);
 
-  if (!result.path || result.path.length === 0) {
-    console.log('No route found by Dijkstra.');
+  if (!result.path || result.path.length <= 1) { // Changed to <= 1 to handle single-node paths
+    console.log('No valid route found by Dijkstra.');
     return res.json({ success: false, error: 'No route found.' });
   }
   // Convert node IDs to lat/lng
@@ -128,7 +151,7 @@ app.post('/calculate_route', async (req, res) => {
   }).filter(Boolean);
 
   // Log the final coordinates
-  console.log('Route coordinates:', coords);
+  console.log('Route coordinates:', coords.length);
 
   res.json({ success: true, route: coords });
 });
