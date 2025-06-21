@@ -16,15 +16,27 @@ async function loadGraphData() {
       fetch(nodesUrl),
       fetch(edgesUrl)
     ]);
-    graphNodes = await nodesRes.json();
+    const allNodes = await nodesRes.json(); // Load all nodes initially
     graphEdges = await edgesRes.json();
     console.log('Graph data loaded from Google Drive!');
 
-    // Add these logs:
-    console.log('graphNodes type:', typeof graphNodes, Array.isArray(graphNodes));
-    console.log('graphNodes sample:', graphNodes && graphNodes.slice ? graphNodes.slice(0, 2) : graphNodes);
-    console.log('graphEdges type:', typeof graphEdges, Array.isArray(graphEdges));
-    console.log('graphEdges sample:', graphEdges && Object.keys(graphEdges).length ? Object.keys(graphEdges).slice(0, 2) : graphEdges);
+    // --- START: NEW FILTERING LOGIC ---
+
+    // Create a set of all node IDs that are part of the road network
+    const routableNodeIds = new Set();
+    for (const startNode in graphEdges) {
+      routableNodeIds.add(startNode); // Add the starting node of an edge
+      for (const edge of graphEdges[startNode]) {
+        routableNodeIds.add(String(edge.node)); // Add the destination node
+      }
+    }
+    console.log(`Found ${routableNodeIds.size} routable nodes in the edge data.`);
+
+    // Filter the original nodes list to only include nodes that are in our set
+    graphNodes = allNodes.filter(node => routableNodeIds.has(String(node.id)));
+    
+    console.log(`Filtered all nodes down to ${graphNodes.length} routable nodes.`);
+    // --- END: NEW FILTERING LOGIC ---
 
   } catch (err) {
     console.error('Failed to load graph data:', err);
