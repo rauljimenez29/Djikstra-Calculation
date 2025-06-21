@@ -100,11 +100,25 @@ app.post('/calculate_route', async (req, res) => {
   const { start, end } = req.body;
   const startNode = findNearestNode(start.lat, start.lng, graphNodes);
   const endNode = findNearestNode(end.lat, end.lng, graphNodes);
+
+  // Add these logs:
+  console.log('Start coordinates:', start);
+  console.log('End coordinates:', end);
+  console.log('Start node:', startNode);
+  console.log('End node:', endNode);
+
   if (!startNode || !endNode) {
+    console.log('No nearby node found for start or end.');
     return res.json({ success: false, error: 'No nearby node found.' });
   }
+
   const result = dijkstra(graphEdges, startNode, endNode);
+
+  // Log the Dijkstra result
+  console.log('Dijkstra result:', result);
+
   if (!result.path || result.path.length === 0) {
+    console.log('No route found by Dijkstra.');
     return res.json({ success: false, error: 'No route found.' });
   }
   // Convert node IDs to lat/lng
@@ -112,6 +126,10 @@ app.post('/calculate_route', async (req, res) => {
     const node = graphNodes.find(n => n.id === id);
     return node ? { lat: node.lat, lng: node.lng } : null;
   }).filter(Boolean);
+
+  // Log the final coordinates
+  console.log('Route coordinates:', coords);
+
   res.json({ success: true, route: coords });
 });
 
