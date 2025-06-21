@@ -1,7 +1,7 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 const nodesUrl = 'https://drive.google.com/uc?export=download&id=1DoXz1PTDVtiKyl0_DzRGCdCv2T_SklxD';
 const edgesUrl = 'https://drive.google.com/uc?export=download&id=1-eNNWnCwlSm0gG1deFPTyR726NWDAHWS';
