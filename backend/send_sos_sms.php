@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $message = $_POST['message'];
 
     // Get contacts for the user
-    $stmt = $conn->prepare("SELECT contact_number FROM contacts WHERE nuser_id = ?");
+    $stmt = $conn->prepare("SELECT contact_number FROM usercontacts WHERE nuser_id = ?");
     $stmt->bind_param("i", $nuserId);
     $stmt->execute();
     $result = $stmt->get_result();
