@@ -56,9 +56,15 @@ function haversine(lat1, lng1, lat2, lng2) {
   return R * c;
 }
 
-function findNearestNode(lat, lng, nodes) {
-  let minDist = Infinity, nearest = null;
+// --- START: IMPROVED findNearestNode FUNCTION ---
+function findNearestNode(lat, lng, nodes, excludeNodeId = null) {
+  let minDist = Infinity;
+  let nearest = null;
   for (const node of nodes) {
+    // Skip the excluded node if specified
+    if (excludeNodeId && String(node.id) === String(excludeNodeId)) {
+      continue;
+    }
     const dist = haversine(node.lat, node.lng, lat, lng);
     if (dist < minDist) {
       minDist = dist;
@@ -67,6 +73,7 @@ function findNearestNode(lat, lng, nodes) {
   }
   return nearest;
 }
+// --- END: IMPROVED findNearestNode FUNCTION ---
 
 // --- CORRECTED DIJKSTRA FUNCTION ---
 function dijkstra(graph, start, end) {
@@ -144,47 +151,63 @@ function dijkstra(graph, start, end) {
   return { path, distance: distances[end] };
 }
 
+// --- START: ROBUST ROUTE CALCULATION LOGIC ---
 app.post('/calculate_route', async (req, res) => {
   if (!graphNodes || !graphEdges) {
-    return res.status(503).json({ success: false, error: 'Graph data not loaded yet.' });
+    return res.status(503).json({ success: false, error: 'Graph data not loaded yet. Please try again in a moment.' });
   }
   const { start, end } = req.body;
-  const startNode = findNearestNode(start.lat, start.lng, graphNodes);
-  const endNode = findNearestNode(end.lat, end.lng, graphNodes);
 
-  // Add these logs:
+  let startNode = findNearestNode(start.lat, start.lng, graphNodes);
+  let endNode = findNearestNode(end.lat, end.lng, graphNodes);
+
+  // If the nodes are the same, find the next closest node for the endpoint
+  if (String(startNode) === String(endNode)) {
+    console.log(`Initial nodes are identical (${startNode}). Finding alternative for end point.`);
+    endNode = findNearestNode(end.lat, end.lng, graphNodes, startNode); // Exclude the startNode
+  }
+
+  // If they are STILL the same, it means the locations are truly indistinguishable
+  if (String(startNode) === String(endNode)) {
+      console.log('Start and end nodes are still the same. Locations are likely too close to differentiate.');
+      return res.json({ 
+          success: false, 
+          error: 'Start and end locations are too close to calculate a meaningful route.' 
+      });
+  }
+
   console.log('Start coordinates:', start);
   console.log('End coordinates:', end);
-  console.log('Start node:', startNode);
-  console.log('End node:', endNode);
+  console.log('Final Start node:', startNode);
+  console.log('Final End node:', endNode);
 
   if (!startNode || !endNode) {
-    console.log('No nearby node found for start or end.');
-    return res.json({ success: false, error: 'No nearby node found.' });
+    console.log('Could not find a nearby road for the start or end point.');
+    return res.json({ success: false, error: 'Could not find a nearby road for the start or end point.' });
   }
 
-  const result = dijkstra(graphEdges, startNode, endNode);
+  const result = dijkstra(graphEdges, String(startNode), String(endNode));
 
-  // Log the Dijkstra result
   console.log('Dijkstra result:', result);
 
-  if (!result.path || result.path.length <= 1) { // Changed to <= 1 to handle single-node paths
-    console.log('No valid route found by Dijkstra.');
-    return res.json({ success: false, error: 'No route found.' });
+  if (!result.path || result.path.length < 1) {
+    console.log('No valid route found by Dijkstra. The locations may not be connected by the road network.');
+    return res.json({ success: false, error: 'No route found. The locations may not be connected by road.' });
   }
+
   // Convert node IDs to lat/lng
   const coords = result.path.map(id => {
-    const node = graphNodes.find(n => n.id === id);
+    // Ensure we find based on string comparison
+    const node = graphNodes.find(n => String(n.id) === String(id));
     return node ? { lat: node.lat, lng: node.lng } : null;
   }).filter(Boolean);
 
-  // Log the final coordinates
   console.log('Route coordinates:', coords.length);
-
   res.json({ success: true, route: coords });
 });
+// --- END: ROBUST ROUTE CALCULATION LOGIC ---
 
 app.get('/', (req, res) => res.send('Route API is running!'));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); 
