@@ -158,6 +158,24 @@ app.post('/calculate_route', async (req, res) => {
   }
   const { start, end } = req.body;
 
+  // Check if locations are close to each other (within 50 meters = 0.05 km)
+  const directDistance = haversine(start.lat, start.lng, end.lat, end.lng);
+  const CLOSE_THRESHOLD = 0.05; // 50 meters in kilometers
+  
+  if (directDistance <= CLOSE_THRESHOLD) {
+    console.log(`Locations are close (${directDistance.toFixed(3)} km). Returning just location points without route.`);
+    return res.json({ 
+      success: true, 
+      route: [], // Empty route - no red line
+      locations: [
+        { lat: start.lat, lng: start.lng },
+        { lat: end.lat, lng: end.lng }
+      ],
+      isClose: true,
+      directDistance: directDistance
+    });
+  }
+
   let startNode = findNearestNode(start.lat, start.lng, graphNodes);
   let endNode = findNearestNode(end.lat, end.lng, graphNodes);
 
@@ -171,8 +189,14 @@ app.post('/calculate_route', async (req, res) => {
   if (String(startNode) === String(endNode)) {
       console.log('Start and end nodes are still the same. Locations are likely too close to differentiate.');
       return res.json({ 
-          success: false, 
-          error: 'Start and end locations are too close to calculate a meaningful route.' 
+          success: true,
+          route: [], // Empty route - no red line
+          locations: [
+            { lat: start.lat, lng: start.lng },
+            { lat: end.lat, lng: end.lng }
+          ],
+          isClose: true,
+          directDistance: directDistance
       });
   }
 
@@ -203,7 +227,12 @@ app.post('/calculate_route', async (req, res) => {
   }).filter(Boolean);
 
   console.log('Route coordinates:', coords.length);
-  res.json({ success: true, route: coords });
+  res.json({ 
+    success: true, 
+    route: coords,
+    isClose: false,
+    directDistance: directDistance
+  });
 });
 // --- END: ROBUST ROUTE CALCULATION LOGIC ---
 
